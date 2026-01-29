@@ -1,6 +1,6 @@
 ## Customer-Churn-Prediction
 
-### 📌 Project Overview
+###  Project Overview
 
 This project focuses on **predicting customer churn** using machine learning and simple deep learning models. Customer churn refers to customers who stop using a company’s service or product. Predicting churn helps businesses take proactive steps to retain customers.
 
@@ -13,7 +13,7 @@ The project includes:
 
 ---
 
-### 📂 Project Structure
+###  Project Structure
 
 ```
 Customer-Churn-Prediction-main/
@@ -25,7 +25,7 @@ Customer-Churn-Prediction-main/
 
 ---
 
-### 📊 Dataset Description
+###  Dataset Description
 
 The dataset contains customer-related features such as:
 
@@ -38,7 +38,7 @@ The dataset contains customer-related features such as:
 
 ---
 
-### 🧠 Models Used
+###  Models Used
 
 The notebook implements and compares multiple models:
 
@@ -55,7 +55,7 @@ The notebook implements and compares multiple models:
 
 ---
 
-### ⚙️ Workflow Steps
+###  Workflow Steps
 
 1. **Data Loading**
 
@@ -88,7 +88,7 @@ The notebook implements and compares multiple models:
 
 ---
 
-### 🧪 Evaluation Metrics
+###  Evaluation Metrics
 
 * Accuracy Score
 * Confusion Matrix
@@ -96,7 +96,7 @@ The notebook implements and compares multiple models:
 
 ---
 
-### 🛠️ Technologies & Libraries Used
+###  Technologies & Libraries Used
 
 * Python 3.x
 * Pandas
@@ -108,7 +108,7 @@ The notebook implements and compares multiple models:
 
 ---
 
-### ▶️ How to Run the Project
+###  How to Run the Project
 
 1. Clone the repository:
 
@@ -129,14 +129,14 @@ The notebook implements and compares multiple models:
 
 ---
 
-### 📈 Results
+###  Results
 
 * The Random Forest and ANN models generally provide better accuracy compared to basic classifiers.
 * Visualization helps identify key churn-driving factors.
 
 ---
 
-### 🚀 Future Improvements
+###  Future Improvements
 
 * Hyperparameter tuning (GridSearchCV)
 * Cross-validation
