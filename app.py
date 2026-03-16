@@ -1,22 +1,29 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
-import pickle
-import pandas as pd
-from pathlib import Path
 from enum import Enum
+import pickle
 from typing import Literal
 
-app = FastAPI(title="Customer Churn Prediction API", version="1.0.0")
-BASE_DIR = Path(__file__).resolve().parent
+from fastapi import FastAPI, HTTPException
+import pandas as pd
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-# Load model and preprocessing components
+from config import FEATURES_PATH, MODEL_PATH
+
+
+app = FastAPI(title="Customer Churn Prediction API", version="1.0.0")
+
+
+def _load_pickle(path):
+    if path.exists():
+        with open(path, "rb") as file:
+            return pickle.load(file)
+    raise FileNotFoundError
+
+
 try:
-    with open(BASE_DIR / 'model.pkl', 'rb') as f:
-        model = pickle.load(f)
-    with open(BASE_DIR / 'features.pkl', 'rb') as f:
-        feature_names = pickle.load(f)
+    model = _load_pickle(MODEL_PATH)
+    feature_names = _load_pickle(FEATURES_PATH)
 except FileNotFoundError:
-    raise Exception("Model files not found. Please run train_and_save_model.py first")
+    raise Exception("Model files not found in the model_files folder. Please run train_and_save_model.py first")
 
 
 class Gender(str, Enum):
@@ -59,7 +66,7 @@ class PaymentMethod(str, Enum):
     BANK_TRANSFER = "Bank transfer (automatic)"
     CREDIT_CARD = "Credit card (automatic)"
 
-# Define input data structure
+
 class CustomerData(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -83,40 +90,64 @@ class CustomerData(BaseModel):
     MonthlyCharges: float = Field(ge=0, le=1000)
     TotalCharges: float = Field(ge=0, le=1000000)
 
+    @model_validator(mode="after")
+    def validate_service_consistency(self):
+        internet_fields = [
+            self.OnlineSecurity,
+            self.OnlineBackup,
+            self.DeviceProtection,
+            self.TechSupport,
+            self.StreamingTV,
+            self.StreamingMovies,
+        ]
+
+        if self.InternetService == InternetService.NO:
+            if any(value != InternetAddon.NO_INTERNET_SERVICE for value in internet_fields):
+                raise ValueError(
+                    "If InternetService is 'No', internet addon fields must be 'No internet service'."
+                )
+        else:
+            if any(value == InternetAddon.NO_INTERNET_SERVICE for value in internet_fields):
+                raise ValueError(
+                    "If InternetService is not 'No', internet addon fields must be only 'Yes' or 'No'."
+                )
+
+        if self.PhoneService == YesNo.NO and self.MultipleLines != MultipleLines.NO_PHONE_SERVICE:
+            raise ValueError("If PhoneService is 'No', MultipleLines must be 'No phone service'.")
+        if self.PhoneService == YesNo.YES and self.MultipleLines == MultipleLines.NO_PHONE_SERVICE:
+            raise ValueError("If PhoneService is 'Yes', MultipleLines must be only 'Yes' or 'No'.")
+
+        return self
+
+
 def preprocess_input(data: CustomerData) -> pd.DataFrame:
-    """Build model input row in training feature order."""
     input_dict = data.model_dump()
-    df = pd.DataFrame([input_dict])
-    return df[feature_names]
+    dataframe = pd.DataFrame([input_dict])
+    return dataframe[feature_names]
+
 
 @app.post("/predict")
 async def predict_churn(customer: CustomerData):
-    """Predict customer churn probability"""
     try:
-        # Preprocess input
         processed_data = preprocess_input(customer)
-
-        # Make prediction
         prediction_proba = model.predict_proba(processed_data)[0]
         prediction = model.predict(processed_data)[0]
 
-        # Return results
         return {
             "churn_probability": float(prediction_proba[1]),
             "churn_prediction": bool(prediction),
             "prediction_text": "Will churn" if prediction else "Will not churn",
-            "confidence": float(max(prediction_proba))
+            "confidence": float(max(prediction_proba)),
         }
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Prediction error: {str(exc)}")
 
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Prediction error: {str(e)}")
 
 @app.get("/")
 async def root():
-    """API root endpoint"""
     return {"message": "Customer Churn Prediction API", "status": "active"}
+
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
     return {"status": "healthy"}

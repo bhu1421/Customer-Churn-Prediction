@@ -1,49 +1,43 @@
-﻿#!/usr/bin/env python3
-"""
-Customer Churn Prediction - Deployment Runner
-This script helps you run both the FastAPI backend and Streamlit frontend.
-"""
-
-import os
 import subprocess
 import sys
 import time
 
+from config import FEATURES_PATH, MODEL_PATH
 
-def run_command(command, name):
-    """Run a command in the background."""
+
+def run_command(command: str, name: str):
     print(f"Starting {name}...")
     try:
-        process = subprocess.Popen(
+        return subprocess.Popen(
             command,
             shell=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            cwd=os.getcwd(),
         )
-        return process
-    except Exception as e:
-        print(f"Error starting {name}: {e}")
+    except Exception as exc:
+        print(f"Error starting {name}: {exc}")
         return None
 
 
-def main():
+def model_files_available() -> bool:
+    return MODEL_PATH.exists() and FEATURES_PATH.exists()
+
+
+if __name__ == "__main__":
     print("Customer Churn Prediction - Deployment")
     print("=" * 50)
 
-    required_files = ["model.pkl", "features.pkl"]
-    missing_files = [f for f in required_files if not os.path.exists(f)]
-
-    if missing_files:
-        print(f"[ERROR] Missing model files: {missing_files}")
+    if not model_files_available():
+        print("[ERROR] Missing model files in the model_files folder.")
         print("Please run: python train_and_save_model.py")
         sys.exit(1)
 
     print("[OK] Model files found")
 
-    fastapi_cmd = "uvicorn app:app --reload --host 0.0.0.0 --port 8000"
-    fastapi_process = run_command(fastapi_cmd, "FastAPI server")
-
+    fastapi_process = run_command(
+        "uvicorn app:app --reload --host 0.0.0.0 --port 8000",
+        "FastAPI server",
+    )
     if fastapi_process:
         print("[OK] FastAPI server started on http://localhost:8000")
         print("   - API docs: http://localhost:8000/docs")
@@ -51,9 +45,10 @@ def main():
 
     time.sleep(3)
 
-    streamlit_cmd = "streamlit run streamlit_app.py --server.port 8501 --server.address 0.0.0.0"
-    streamlit_process = run_command(streamlit_cmd, "Streamlit app")
-
+    streamlit_process = run_command(
+        "streamlit run streamlit_app.py --server.port 8501 --server.address 0.0.0.0",
+        "Streamlit app",
+    )
     if streamlit_process:
         print("[OK] Streamlit app started on http://localhost:8501")
 
@@ -79,7 +74,3 @@ def main():
         if streamlit_process and streamlit_process.poll() is None:
             streamlit_process.terminate()
         print("[OK] Servers stopped")
-
-
-if __name__ == "__main__":
-    main()

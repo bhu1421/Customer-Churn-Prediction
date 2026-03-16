@@ -1,73 +1,79 @@
-import pandas as pd
 import pickle
-from pathlib import Path
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.preprocessing import OneHotEncoder
+
+import pandas as pd
+from sklearn.compose import ColumnTransformer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 
-BASE_DIR = Path(__file__).resolve().parent
-DATA_FILE = BASE_DIR / "customer_churn.xls"
+from config import MODEL_FILES_DIR, DATA_FILE, FEATURES_PATH, MODEL_PATH
 
 
-def load_dataset(path: Path) -> pd.DataFrame:
-    """Load dataset safely for either true Excel or CSV-formatted files."""
+def load_dataset(path) -> pd.DataFrame:
     try:
         return pd.read_excel(path)
     except Exception:
         return pd.read_csv(path)
 
 
-# Load and preprocess data (same as notebook)
-df = load_dataset(DATA_FILE)
-df = df.drop(columns=["customerID"])
+def build_training_frame() -> pd.DataFrame:
+    dataframe = load_dataset(DATA_FILE)
+    dataframe = dataframe.drop(columns=["customerID"])
+    dataframe["TotalCharges"] = pd.to_numeric(dataframe["TotalCharges"], errors="coerce")
+    dataframe = dataframe.dropna(subset=["TotalCharges"]).copy()
+    dataframe["Churn"] = dataframe["Churn"].map({"Yes": 1, "No": 0}).astype(int)
+    return dataframe
 
-# Clean TotalCharges
-df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")
-df = df.dropna(subset=["TotalCharges"]).copy()
-df["Churn"] = df["Churn"].map({"Yes": 1, "No": 0}).astype(int)
 
-X = df.drop("Churn", axis="columns")
-y = df["Churn"]
+def train() -> tuple[Pipeline, list[str], float, float]:
+    dataframe = build_training_frame()
+    x_values = dataframe.drop("Churn", axis="columns")
+    y_values = dataframe["Churn"]
 
-# Split first to prevent leakage from preprocessing.
-X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.25,
-    random_state=5,
-    stratify=y,
-)
+    x_train, x_test, y_train, y_test = train_test_split(
+        x_values,
+        y_values,
+        test_size=0.25,
+        random_state=5,
+        stratify=y_values,
+    )
 
-numeric_cols = ["MonthlyCharges", "tenure", "TotalCharges"]
-categorical_cols = [col for col in X.columns if col not in numeric_cols and col != "SeniorCitizen"]
+    numeric_cols = ["MonthlyCharges", "tenure", "TotalCharges"]
+    categorical_cols = [column for column in x_values.columns if column not in numeric_cols and column != "SeniorCitizen"]
 
-preprocessor = ColumnTransformer(
-    transformers=[
-        ("num", MinMaxScaler(), numeric_cols),
-        ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_cols),
-    ],
-    remainder="passthrough",
-)
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("num", MinMaxScaler(), numeric_cols),
+            ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_cols),
+        ],
+        remainder="passthrough",
+    )
 
-model = Pipeline(
-    steps=[
-        ("preprocessor", preprocessor),
-        ("classifier", LogisticRegression(random_state=0, max_iter=1000)),
-    ]
-)
+    model = Pipeline(
+        steps=[
+            ("preprocessor", preprocessor),
+            ("classifier", LogisticRegression(random_state=0, max_iter=1000)),
+        ]
+    )
+    model.fit(x_train, y_train)
 
-model.fit(X_train, y_train)
+    train_accuracy = model.score(x_train, y_train)
+    test_accuracy = model.score(x_test, y_test)
+    return model, list(x_values.columns), train_accuracy, test_accuracy
 
-# Save model pipeline and source feature names
-with open(BASE_DIR / 'model.pkl', 'wb') as f:
-    pickle.dump(model, f)
 
-with open(BASE_DIR / 'features.pkl', 'wb') as f:
-    pickle.dump(list(X.columns), f)
+def save_model_files(model: Pipeline, feature_names: list[str]) -> None:
+    MODEL_FILES_DIR.mkdir(parents=True, exist_ok=True)
+    with open(MODEL_PATH, "wb") as file:
+        pickle.dump(model, file)
+    with open(FEATURES_PATH, "wb") as file:
+        pickle.dump(feature_names, file)
 
-print("Model and preprocessing components saved successfully!")
-print(f"Training accuracy: {model.score(X_train, y_train):.4f}")
-print(f"Test accuracy: {model.score(X_test, y_test):.4f}")
+
+if __name__ == "__main__":
+    model, feature_names, train_accuracy, test_accuracy = train()
+    save_model_files(model, feature_names)
+    print("Model files saved successfully!")
+    print(f"Training accuracy: {train_accuracy:.4f}")
+    print(f"Test accuracy: {test_accuracy:.4f}")
