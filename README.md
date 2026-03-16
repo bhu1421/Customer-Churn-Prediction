@@ -1,153 +1,88 @@
-## Customer-Churn-Prediction
+﻿## Customer-Churn-Prediction
 
-###  Project Overview
+### Project Overview
+This project predicts customer churn (whether a customer is likely to leave) using a Logistic Regression model. It includes:
 
-This project focuses on **predicting customer churn** using machine learning and simple deep learning models. Customer churn refers to customers who stop using a company’s service or product. Predicting churn helps businesses take proactive steps to retain customers.
+- A training script to preprocess data and save artifacts
+- A FastAPI backend for predictions
+- A Streamlit frontend for interactive usage
+- A deployment helper script to run both services
 
-The project includes:
-
-* Data preprocessing and exploratory data analysis (EDA)
-* Multiple ML classification models
-* A simple Artificial Neural Network (ANN) model
-* Model evaluation and comparison
-
----
-
-###  Project Structure
-
+### Project Structure
+```text
+Customer-Churn-Prediction/
+|-- customer_churn_classification.ipynb   # Notebook workflow
+|-- train_and_save_model.py               # Training + artifact export
+|-- app.py                                # FastAPI backend
+|-- streamlit_app.py                      # Streamlit frontend
+|-- run_deployment.py                     # Starts backend + frontend
+|-- test_api.py                           # API smoke test
+|-- requirements.txt                      # Dependencies
+|-- customer_churn.xls                    # Dataset
+|-- model.pkl                             # Trained model (generated)
+|-- scaler.pkl                            # Fitted scaler (generated)
+|-- features.pkl                          # Feature list (generated)
+`-- README.md
 ```
-Customer-Churn-Prediction-main/
-│
-├── customer_churn (1).xls                # Dataset file
-├── customer_churn_classfication.ipynb   # Jupyter Notebook with full workflow
-└── README.md                            # Project documentation (this file)
+
+### Dataset
+- File: `customer_churn.xls`
+- Contains customer profile, service usage, billing details, and `Churn` target.
+
+### Model and Preprocessing
+- Algorithm: Logistic Regression
+- Test accuracy: ~79.12%
+- Preprocessing:
+  - Missing/invalid `TotalCharges` handling
+  - Binary encoding for yes/no fields
+  - One-hot encoding for categorical fields
+  - MinMax scaling for numeric columns
+
+### Installation
+```bash
+pip install -r requirements.txt
 ```
 
----
+### Run Steps
+1. Train and save artifacts:
+```bash
+python train_and_save_model.py
+```
 
-###  Dataset Description
+2. Start full deployment (recommended):
+```bash
+python run_deployment.py
+```
 
-The dataset contains customer-related features such as:
+3. Open:
+- Frontend: http://localhost:8501
+- API: http://localhost:8000
+- API docs: http://localhost:8000/docs
+- Health check: http://localhost:8000/health
 
-* Demographic details (e.g., gender, age)
-* Service usage details
-* Billing information
-* Target variable: **Churn** (Yes/No)
+### Run Services Separately
+Terminal 1:
+```bash
+uvicorn app:app --reload
+```
 
-> File format: `.xls` (Excel)
+Terminal 2:
+```bash
+streamlit run streamlit_app.py
+```
 
----
+### Test API
+```bash
+python test_api.py
+```
 
-###  Models Used
+### API Endpoints
+- `POST /predict`: Predict churn probability and class
+- `GET /health`: Health check
 
-The notebook implements and compares multiple models:
+### Notes
+- Keep `model.pkl`, `scaler.pkl`, and `features.pkl` in the project root.
+- If artifacts are missing, retrain using `train_and_save_model.py`.
 
-#### Machine Learning Models
-
-* Logistic Regression
-* Decision Tree Classifier
-* Random Forest Classifier
-* Naive Bayes (GaussianNB)
-
-#### Deep Learning Model
-
-* Artificial Neural Network (ANN) using Keras Sequential API
-
----
-
-###  Workflow Steps
-
-1. **Data Loading**
-
-   * Load dataset using Pandas
-
-2. **Data Preprocessing**
-
-   * Handle missing values
-   * Encode categorical variables
-   * Feature scaling using MinMaxScaler
-
-3. **Exploratory Data Analysis (EDA)**
-
-   * Visualization using Matplotlib and Seaborn
-   * Correlation analysis
-
-4. **Train-Test Split**
-
-   * Split dataset into training and testing sets
-
-5. **Model Training**
-
-   * Train ML models and ANN
-
-6. **Evaluation**
-
-   * Accuracy score
-   * Confusion matrix
-   * Model comparison
-
----
-
-###  Evaluation Metrics
-
-* Accuracy Score
-* Confusion Matrix
-* Model performance comparison
-
----
-
-###  Technologies & Libraries Used
-
-* Python 3.x
-* Pandas
-* NumPy
-* Matplotlib
-* Seaborn
-* Scikit-learn
-* TensorFlow / Keras
-
----
-
-###  How to Run the Project
-
-1. Clone the repository:
-
-   ```bash
-   git clone <repo-url>
-   ```
-2. Install dependencies:
-
-   ```bash
-   pip install pandas numpy matplotlib seaborn scikit-learn tensorflow
-   ```
-3. Open the notebook:
-
-   ```bash
-   jupyter notebook customer_churn_classfication.ipynb
-   ```
-4. Run all cells sequentially.
-
----
-
-###  Results
-
-* The Random Forest and ANN models generally provide better accuracy compared to basic classifiers.
-* Visualization helps identify key churn-driving factors.
-
----
-
-###  Future Improvements
-
-* Hyperparameter tuning (GridSearchCV)
-* Cross-validation
-* Feature engineering
-* Deployment using Streamlit or Flask
-* Model interpretability (SHAP/LIME)
-
----
-
-### Author:  **Bhuvan Patil** 
-
----
-
-###
+### Author
+Bhuvan Patil
