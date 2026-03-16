@@ -31,7 +31,7 @@ def main():
     print("Customer Churn Prediction - Deployment")
     print("=" * 50)
 
-    required_files = ["model.pkl", "scaler.pkl", "features.pkl"]
+    required_files = ["model.pkl", "features.pkl"]
     missing_files = [f for f in required_files if not os.path.exists(f)]
 
     if missing_files:

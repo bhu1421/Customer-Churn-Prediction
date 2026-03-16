@@ -20,7 +20,6 @@ Customer-Churn-Prediction/
 |-- requirements.txt                      # Dependencies
 |-- customer_churn.xls                    # Dataset
 |-- model.pkl                             # Trained model (generated)
-|-- scaler.pkl                            # Fitted scaler (generated)
 |-- features.pkl                          # Feature list (generated)
 `-- README.md
 ```
@@ -81,7 +80,7 @@ python test_api.py
 - `GET /health`: Health check
 
 ### Notes
-- Keep `model.pkl`, `scaler.pkl`, and `features.pkl` in the project root.
+- Keep `model.pkl` and `features.pkl` in the project root.
 - If artifacts are missing, retrain using `train_and_save_model.py`.
 
 ### Author
