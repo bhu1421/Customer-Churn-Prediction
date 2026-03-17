@@ -1,22 +1,54 @@
+import os
 import subprocess
 import sys
 import time
 
+import requests
+
 from config import FEATURES_PATH, MODEL_PATH
 
 
-def run_command(command: str, name: str):
+API_BASE_URL = "http://127.0.0.1:8000"
+
+
+def run_command(command: list[str], name: str, env: dict[str, str] | None = None):
     print(f"Starting {name}...")
     try:
         return subprocess.Popen(
             command,
-            shell=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            env=env,
         )
     except Exception as exc:
         print(f"Error starting {name}: {exc}")
         return None
+
+
+def wait_for_api(timeout_seconds: int = 20) -> bool:
+    deadline = time.time() + timeout_seconds
+
+    while time.time() < deadline:
+        try:
+            response = requests.get(f"{API_BASE_URL}/health", timeout=1)
+            if response.status_code == 200:
+                return True
+        except requests.RequestException:
+            time.sleep(1)
+
+    return False
+
+
+def stop_process(process: subprocess.Popen | None, name: str) -> None:
+    if not process or process.poll() is not None:
+        return
+
+    process.terminate()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=5)
+
+    print(f"[OK] {name} stopped")
 
 
 def model_files_available() -> bool:
@@ -35,22 +67,44 @@ if __name__ == "__main__":
     print("[OK] Model files found")
 
     fastapi_process = run_command(
-        "uvicorn app:app --reload --host 0.0.0.0 --port 8000",
+        [sys.executable, "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"],
         "FastAPI server",
     )
-    if fastapi_process:
-        print("[OK] FastAPI server started on http://localhost:8000")
-        print("   - API docs: http://localhost:8000/docs")
-        print("   - Health check: http://localhost:8000/health")
+    if not fastapi_process:
+        sys.exit(1)
 
-    time.sleep(3)
+    if not wait_for_api():
+        print("[ERROR] FastAPI server did not become ready in time.")
+        stop_process(fastapi_process, "FastAPI server")
+        sys.exit(1)
+
+    print("[OK] FastAPI server started on http://localhost:8000")
+    print("   - API docs: http://localhost:8000/docs")
+    print("   - Health check: http://localhost:8000/health")
+
+    streamlit_env = os.environ.copy()
+    streamlit_env["API_BASE_URL"] = API_BASE_URL
 
     streamlit_process = run_command(
-        "streamlit run streamlit_app.py --server.port 8501 --server.address 0.0.0.0",
+        [
+            sys.executable,
+            "-m",
+            "streamlit",
+            "run",
+            "streamlit_app.py",
+            "--server.port",
+            "8501",
+            "--server.address",
+            "0.0.0.0",
+        ],
         "Streamlit app",
+        env=streamlit_env,
     )
-    if streamlit_process:
-        print("[OK] Streamlit app started on http://localhost:8501")
+    if not streamlit_process:
+        stop_process(fastapi_process, "FastAPI server")
+        sys.exit(1)
+
+    print("[OK] Streamlit app started on http://localhost:8501")
 
     print("\n[OK] Both servers are running.")
     print("Open your browser to: http://localhost:8501")
@@ -69,8 +123,6 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\nStopping servers...")
     finally:
-        if fastapi_process and fastapi_process.poll() is None:
-            fastapi_process.terminate()
-        if streamlit_process and streamlit_process.poll() is None:
-            streamlit_process.terminate()
+        stop_process(streamlit_process, "Streamlit app")
+        stop_process(fastapi_process, "FastAPI server")
         print("[OK] Servers stopped")

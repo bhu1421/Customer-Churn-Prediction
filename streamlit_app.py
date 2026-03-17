@@ -4,6 +4,15 @@ import requests
 import streamlit as st
 
 
+@st.cache_data(ttl=5, show_spinner=False)
+def get_api_status(health_url: str) -> bool:
+    try:
+        health_response = requests.get(health_url, timeout=1)
+        return health_response.status_code == 200
+    except requests.RequestException:
+        return False
+
+
 def run_app():
     api_base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
     predict_url = f"{api_base_url}/predict"
@@ -148,13 +157,9 @@ Enter the customer details below and click **Predict** to get churn probability.
         )
 
         st.header("API Status")
-        try:
-            health_response = requests.get(health_url, timeout=5)
-            if health_response.status_code == 200:
-                st.success("API server running")
-            else:
-                st.error("API server error")
-        except requests.exceptions.RequestException:
+        if get_api_status(health_url):
+            st.success("API server running")
+        else:
             st.warning("API server not running")
 
         st.header("Model Info")

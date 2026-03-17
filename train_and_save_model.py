@@ -1,4 +1,5 @@
 import pickle
+from pathlib import Path
 
 import pandas as pd
 from sklearn.compose import ColumnTransformer
@@ -10,11 +11,38 @@ from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 from config import MODEL_FILES_DIR, DATA_FILE, FEATURES_PATH, MODEL_PATH
 
 
-def load_dataset(path) -> pd.DataFrame:
+TEXT_DATA_EXTENSIONS = {".csv", ".txt"}
+EXCEL_EXTENSIONS = {".xls", ".xlsx", ".xlsm", ".xlsb"}
+
+
+def _looks_like_text_data(path: Path) -> bool:
+    with open(path, "rb") as file:
+        sample = file.read(2048)
+
+    if b"\x00" in sample:
+        return False
+
     try:
-        return pd.read_excel(path)
-    except Exception:
+        header = sample.decode("utf-8").splitlines()[0]
+    except UnicodeDecodeError:
+        try:
+            header = sample.decode("latin-1").splitlines()[0]
+        except UnicodeDecodeError:
+            return False
+    except IndexError:
+        return False
+
+    return "," in header
+
+
+def load_dataset(path: Path) -> pd.DataFrame:
+    if path.suffix.lower() in TEXT_DATA_EXTENSIONS or _looks_like_text_data(path):
         return pd.read_csv(path)
+
+    if path.suffix.lower() in EXCEL_EXTENSIONS:
+        return pd.read_excel(path)
+
+    raise ValueError(f"Unsupported dataset format: {path.suffix or 'no extension'}")
 
 
 def build_training_frame() -> pd.DataFrame:

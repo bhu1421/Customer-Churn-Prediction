@@ -1,4 +1,5 @@
 from enum import Enum
+import logging
 import pickle
 from typing import Literal
 
@@ -10,6 +11,7 @@ from config import FEATURES_PATH, MODEL_PATH
 
 
 app = FastAPI(title="Customer Churn Prediction API", version="1.0.0")
+logger = logging.getLogger(__name__)
 
 
 def _load_pickle(path):
@@ -132,15 +134,16 @@ async def predict_churn(customer: CustomerData):
         processed_data = preprocess_input(customer)
         prediction_proba = model.predict_proba(processed_data)[0]
         prediction = model.predict(processed_data)[0]
-
-        return {
-            "churn_probability": float(prediction_proba[1]),
-            "churn_prediction": bool(prediction),
-            "prediction_text": "Will churn" if prediction else "Will not churn",
-            "confidence": float(max(prediction_proba)),
-        }
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Prediction error: {str(exc)}")
+        logger.exception("Prediction failed")
+        raise HTTPException(status_code=500, detail="Prediction failed due to a server error.") from exc
+
+    return {
+        "churn_probability": float(prediction_proba[1]),
+        "churn_prediction": bool(prediction),
+        "prediction_text": "Will churn" if prediction else "Will not churn",
+        "confidence": float(max(prediction_proba)),
+    }
 
 
 @app.get("/")
